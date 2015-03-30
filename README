@@ -1,0 +1,50 @@
+XJPATH simplifies access to the python data structures using relatively
+simple path syntax.
+
+A returned element is the actual pointer to the object that can be modified
+in place if it is possible. However, in case if returned value is a tuple
+it is a copied list of values that can not be modified. For example a list
+of dictionary values is a good example.
+
+Let's assume we have the following data structure:
+
+>>> d = {'data': {
+  'a_array': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  'b_dict': {'a': 'xxx', 'b': 'yyy', 'c': 'zzz'},
+  'c_array': [{'v1': 'vdata1'}, {'v2': 'vdata2'}]}}
+
+Get value ['data']['b_dict']['a']:
+
+>>> path_lookup(d, 'data.b_dict.a')
+('xxx', True)
+
+Get first element of a_array:
+>>> path_lookup(d, 'data.a_array.@first')
+(0, True)
+
+Get the last element of a_array:
+
+>>> path_lookup(d, 'data.a_array.@last')
+(10, True)
+
+Get a second element of a_array:
+
+>>> path_lookup(d, 'data.a_array.@1')
+(1, True)
+
+Get element before a last one:
+
+>>> path_lookup(d, 'data.a_array.@-2')
+(9, True)
+
+Get all elements of a_array as non modifiable tuple:
+>>> path_lookup(d, 'data.a_array.*')
+((1, 2, 3, 4, 5, 6, 7, 8, 9, 0), True)
+
+Get all values of b_dict as a tuple:
+>>> path_lookup(d, 'data.b_dict.*')
+((1, 2, 3, 4, 5, 6, 7, 8, 9, 0), True)
+
+>>> path_lookup(d, 'data.b_dict.*')
+(('yyy', 'zzz', 'xxx'), True)
+
