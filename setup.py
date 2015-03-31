@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='xjpath',
-    description='JSON like structure data lookup',
+    description='JSON like structure data lookup library. A fast alternative to XPath and JsonPath. Python3 only.',
     version='0.1.5',
     author='Volodymyr Burenin',
     author_email='vburenin@gmail.net',
