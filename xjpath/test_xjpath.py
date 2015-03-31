@@ -138,12 +138,12 @@ class TestXJPath(unittest.TestCase):
 
     def test_auto_dict_creations(self):
         a = {}
-        xjpath.path_lookup(a, 'a{}.b{}.c{}')
+        xjpath.path_lookup(a, 'a{}.b{}.c{}', True)
         self.assertEqual({'a': {'b': {'c': {}}}}, a)
 
     def test_auto_dict_and_last_array_creations(self):
         a = {}
-        xjpath.path_lookup(a, 'a{}.b{}.c[]')
+        xjpath.path_lookup(a, 'a{}.b{}.c[]', True)
         self.assertEqual({'a': {'b': {'c': []}}}, a)
 
     def test_path_create_type_mismatch1(self):
@@ -177,26 +177,40 @@ class TestXJPath(unittest.TestCase):
             xjpath.path_lookup(a, '@first[]')
 
     def test_type_escape_for_str(self):
-        self.assertEqual(('v', True), xjpath.path_lookup({'a$': 'v'}, 'a\$'))
-        self.assertEqual(('', True), xjpath.path_lookup({'a$': 'a'}, 'a$'))
+        self.assertEqual(('v', True),
+                         xjpath.path_lookup({'a$': 'v'}, 'a\$', True))
+        self.assertEqual(('', True),
+                         xjpath.path_lookup({'a$': 'a'}, 'a$', True))
 
     def test_type_escape_for_number(self):
-        self.assertEqual((123, True), xjpath.path_lookup({'a#': 123}, 'a\#'))
-        self.assertEqual((0, True), xjpath.path_lookup({'a$': 123}, 'a#'))
+        self.assertEqual((123, True),
+                         xjpath.path_lookup({'a#': 123}, 'a\#', True))
+        self.assertEqual((0, True),
+                         xjpath.path_lookup({'a$': 123}, 'a#', True))
 
     def test_type_escape_for_float(self):
-        self.assertEqual((.1, True), xjpath.path_lookup({'a%': .1}, 'a\%'))
-        self.assertEqual((.0, True), xjpath.path_lookup({'a%': 123}, 'a%'))
+        self.assertEqual((.1, True),
+                         xjpath.path_lookup({'a%': .1}, 'a\%', True))
+        self.assertEqual((.0, True),
+                         xjpath.path_lookup({'a%': 123}, 'a%', True))
 
     def test_type_escape_for_dict(self):
         self.assertEqual(({"1": 1}, True),
-                         xjpath.path_lookup({'a{}': {"1": 1}}, 'a\{}'))
+                         xjpath.path_lookup({'a{}': {"1": 1}}, 'a\{}', True))
         self.assertEqual(({}, True),
-                         xjpath.path_lookup({'a{}': {"1": 1}}, 'a{}'))
+                         xjpath.path_lookup({'a{}': {"1": 1}}, 'a{}', True))
 
     def test_type_escape_for_list(self):
-        self.assertEqual(([1], True), xjpath.path_lookup({'a[]': [1]}, 'a\[]'))
-        self.assertEqual(([], True), xjpath.path_lookup({'a[]': [1]}, 'a[]'))
+        self.assertEqual(([1], True),
+                         xjpath.path_lookup({'a[]': [1]}, 'a\[]', True))
+        self.assertEqual(([], True),
+                         xjpath.path_lookup({'a[]': [1]}, 'a[]', True))
+
+    def test_XJPath(self):
+        d = {'t1': 1, 't2': 2, 't3': 3, 't4': 4}
+        x = xjpath.XJPath(d)
+        self.assertEqual(1, x['t1'])
+        self.assertEqual(None, x.get('t1.1'))
 
 
 if __name__ == '__main__':

@@ -1,52 +1,105 @@
 """XJPATH simplifies access to the python data structures using relatively
-simple path syntax.
+simple path syntax. It doesn't not only lookup value, it also can
+validate found data type as well as create value if a target structure is a
+dictionary.
 
-A returned element is the actual pointer to the object that can be modified
-in place if it is possible. However, in case if returned value is a tuple
-it is a copied list of values that can not be modified. For example a list
-of dictionary values is a good example.
+The typical scenarios are:
 
-Let's assume we have the following data structure:
+ - you need to lookup an element from nested dicts.
+ - you need to lookup and element from array that is a value of nested dictionary
+ - you need to get a list of X values from multiple nested dictionaries.
+ - you just want to operate with a complex data structure in the way you
+   operate with the dictionary.
+ - you want to make sure that found data has an expected type.
+
+The expression syntax is trivial it looks like:
+
+'key1.key2.key3'
+
+Each key name is a nested data index/key. Key may refer to a dictionary,
+an array index or iterator.
+
+To refer a dictionary key, just use its name as in the example above.
+
+An array index is prepended with '@' symbol:
+
+    @2 - Means seconds element.
+    @-2 - Means second element from the end.
+    @last - Means last element.
+    @first - Means first element of the array.
+
+In case if dictionary key contains any reserved symbols, just escape them.
+
+'2.\@2' - will lookup key 2 and then key '@2'.
+
+You also can specify a type of expected value as a postfix for expected value:
+
+  'keyname[]', '@last[], '@first{}', 'data$', 'data#'
+
+  [] - Expected value is a list.
+  () - Expected value is a tuple.
+  {} - Expected value is a dictionary.
+  # - Expected value is an integer.
+  % - Expected value is a float.
+  $ - Expected value is a string.
+
+
+Here is a bunch of examples:
 
 >>> d = {'data': {
   'a_array': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
   'b_dict': {'a': 'xxx', 'b': 'yyy', 'c': 'zzz'},
-  'c_array': [{'v1': 'vdata1'}, {'v2': 'vdata2'}]}}
+  'c_array': [{'v': 'vdata1'}, {'v': 'vdata2'}]}}
+>>> xj = xjpath.XJPath(d)
 
-Get value ['data']['b_dict']['a']:
+To get 'a_array' array:
 
->>> path_lookup(d, 'data.b_dict.a')
-('xxx', True)
+>>> xj['data.a_array']
+[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-Get first element of a_array:
->>> path_lookup(d, 'data.a_array.@first')
-(0, True)
+>>> xj['data.a_array{}']
+IndexError: ('Path error: data.a_array{}', 'Key a_array expects type "dict", but found value type is "list"')
 
-Get the last element of a_array:
+To get a last element of 'a_array' array:
 
->>> path_lookup(d, 'data.a_array.@last')
-(10, True)
+>>> xj['data.a_array.@last']
+10
 
-Get a second element of a_array:
+To get the first element of 'a_array' array:
 
->>> path_lookup(d, 'data.a_array.@1')
-(1, True)
+>>> xj['data.a_array.@first']
+0
 
-Get element before a last one:
+To get 9th element from 'a_array':
 
->>> path_lookup(d, 'data.a_array.@-2')
-(9, True)
+>>> xj['data.a_array.@9']
+9
 
-Get all elements of a_array as non modifiable tuple:
->>> path_lookup(d, 'data.a_array.*')
-((1, 2, 3, 4, 5, 6, 7, 8, 9, 0), True)
+To get third element from the back from 'a_array':
 
-Get all values of b_dict as a tuple:
->>> path_lookup(d, 'data.b_dict.*')
-((1, 2, 3, 4, 5, 6, 7, 8, 9, 0), True)
+>>> xj['data.a_array.@-3']
+8
 
->>> path_lookup(d, 'data.b_dict.*')
-(('yyy', 'zzz', 'xxx'), True)
+To get all values that are stored in dictionaries with key 'v1' of array c_array:
+
+>>> xj['data.c_array.*.v']
+('vdata1', 'vdata2')
+
+To return a frozen copy of a_array:
+
+>>> xj['data.a_array.*']
+(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+To get all values of b_dict dictionary:
+
+>>> xj['data.b_dict.*']
+('zzz', 'yyy', 'xxx')
+
+
+If you don't like a dictionary like interface. Feel free to use path_lookup
+function instead that returns a found value as well as a boolean value telling
+you if result is found or not.
+
 
 Author: vburenin@gmail.com
 """
@@ -102,11 +155,12 @@ def split(inp_str, sep_char, maxsplit=-1, escape_char='\\'):
     yield ''.join(word_chars)
 
 
-def _full_sub_array(data_obj, xj_path):
+def _full_sub_array(data_obj, xj_path, create_dict_path):
     """Retrieves all array or dictionary elements for '*' JSON path marker.
 
     :param dict|list data_obj: The current data object.
     :param str xj_path: A json path.
+    :param bool create_dict_path create a dict path.
     :return: tuple with two values: first is a result and second
              a boolean flag telling if this value exists or not.
     """
@@ -115,7 +169,7 @@ def _full_sub_array(data_obj, xj_path):
         if xj_path:
             res = []
             for d in data_obj:
-                val, exists = path_lookup(d, xj_path)
+                val, exists = path_lookup(d, xj_path, create_dict_path)
                 if exists:
                     res.append(val)
             return tuple(res), True
@@ -125,7 +179,7 @@ def _full_sub_array(data_obj, xj_path):
         if xj_path:
             res = []
             for d in data_obj.values():
-                val, exists = path_lookup(d, xj_path)
+                val, exists = path_lookup(d, xj_path, create_dict_path)
                 if exists:
                     res.append(val)
             return tuple(res), True
@@ -157,12 +211,13 @@ def _get_array_index(array_path):
         raise XJPathError('Unknown index reference', (array_path,))
 
 
-def _single_array_element(data_obj, xj_path, array_path):
+def _single_array_element(data_obj, xj_path, array_path, create_dict_path):
     """Retrieves a single array for a '@' JSON path marker.
 
     :param list data_obj: The current data object.
     :param str xj_path: A json path.
     :param str array_path: A lookup key.
+    :param bool create_dict_path create a dict path.
     """
 
     val_type, array_path = _clean_key_type(array_path)
@@ -177,7 +232,7 @@ def _single_array_element(data_obj, xj_path, array_path):
                                    val_type.__name__))
 
             if xj_path:
-                return path_lookup(value, xj_path)
+                return path_lookup(value, xj_path, create_dict_path)
             else:
                 return value, True
         except IndexError:
@@ -206,94 +261,6 @@ def _split_path(xj_path):
             return None, root_key
         else:
             raise XJPathError('Path cannot be empty', (xj_path,))
-
-
-def _set_dict_value(data_obj, xj_path, key, value):
-    """Set a dictionary key->value.
-
-    :param dict data_obj: Dictionary data object.
-    :param str xj_path: xj path.
-    :param str key: A dictionary key.
-    :param value: A value that should be assigned.
-    """
-
-    value_ref = strict_path_lookup(data_obj, xj_path, force_type=dict)
-
-    value_ref[key] = value
-
-
-def _update_dict_value(data_obj, xj_path, key, updater):
-    """Update value under at given dictionary key.
-
-    :param dict data_obj: Dictionary data object.
-    :param str xj_path: xj path.
-    :param str key: A dictionary key.
-    :param (object) -> object updater: Object updater callable.
-    """
-
-    value_ref = strict_path_lookup(data_obj, xj_path, force_type=dict)
-    value_ref[key] = updater(value_ref.get(key, None))
-
-
-def _del_dict_value(data_obj, xj_path, key):
-    """Delete a dictionary key->value pair
-
-    :param dict data_obj: Dictionary data object.
-    :param str xj_path: xj path.
-    :param str key: A dictionary key.
-    """
-
-    value_ref = strict_path_lookup(data_obj, xj_path, force_type=dict)
-    value_ref.pop(key, None)
-
-
-def _set_array_value(data_obj, xj_path, array_idx_key, value):
-    """Set a value into array to a provided index. Index must exist.
-
-    :param dict|list data_obj: Dictionary data object.
-    :param str xj_path: xj path.
-    :param str array_idx_key: An array index specification.
-    :param value: A value that should be assigned.
-    """
-
-    value_ref = strict_path_lookup(data_obj, xj_path, force_type=list)
-
-    try:
-        value_ref[_get_array_index(array_idx_key)] = value
-    except IndexError:
-        raise XJPathError('Array index error', (xj_path, array_idx_key))
-
-
-def _update_array_value(data_obj, xj_path, array_idx_key, updater):
-    """Update value at given index in the array.
-
-    :param dict|list data_obj: Dictionary data object.
-    :param str xj_path: xj path.
-    :param str array_idx_key: An array index specification.
-    :param (object) -> object updater: Object updater callable.
-    """
-
-    value_ref = strict_path_lookup(data_obj, xj_path, force_type=list)
-    try:
-        updated_value = updater(value_ref[_get_array_index(array_idx_key)])
-        value_ref[_get_array_index(array_idx_key)] = updated_value
-    except IndexError:
-        raise XJPathError('Array index error', (xj_path, array_idx_key))
-
-
-def _del_array_value(data_obj, xj_path, array_idx_key):
-    """Delete value from array according to its index.
-
-    :param dict|list data_obj: Dictionary data object.
-    :param str xj_path: xj path.
-    :param str array_idx_key: An array index specification.
-    """
-
-    value_ref = strict_path_lookup(data_obj, xj_path, force_type=list)
-    try:
-        value_ref.pop(_get_array_index(array_idx_key))
-    except IndexError:
-        raise XJPathError('Array index error', (xj_path, array_idx_key))
 
 
 def validate_path(xj_path):
@@ -325,6 +292,7 @@ _KEY_SPLIT = {
     '%': float,
     '{}': dict,
     '[]': list,
+    '()': tuple,
 }
 
 
@@ -380,11 +348,12 @@ def _clean_key_type(key_name, escape_char=ESCAPE_SEQ):
     return None, key_name
 
 
-def path_lookup(data_obj, xj_path):
+def path_lookup(data_obj, xj_path, create_dict_path=False):
     """Looks up a xj path in the data_obj.
 
     :param dict|list data_obj: An object to look into.
     :param str xj_path: A path to extract data from.
+    :param bool create_dict_path: Create an element if type is specified.
     :return: A tuple where 0 value is an extracted value and a second
              field that tells if value either was found or not found.
     """
@@ -395,13 +364,13 @@ def path_lookup(data_obj, xj_path):
     top_key, *leftover = split(xj_path, '.', maxsplit=1)
     leftover = leftover[0] if leftover else None
     if top_key == '*':
-        return _full_sub_array(data_obj, leftover)
+        return _full_sub_array(data_obj, leftover, create_dict_path)
     elif top_key.startswith('@'):
-        return _single_array_element(data_obj, leftover, top_key)
+        return _single_array_element(data_obj, leftover, top_key,
+                                     create_dict_path)
     else:
         val_type, top_key = _clean_key_type(top_key)
         top_key = unescape(top_key)
-
         if top_key in data_obj:
             value = data_obj[top_key]
             if val_type is not None and not isinstance(value, val_type):
@@ -409,7 +378,7 @@ def path_lookup(data_obj, xj_path):
                     'Key %s expects type "%s", but found value type is "%s"' %
                     (top_key, val_type.__name__, type(value).__name__))
             if leftover:
-                return path_lookup(value, leftover)
+                return path_lookup(value, leftover, create_dict_path)
             else:
                 return value, True
         else:
@@ -417,9 +386,13 @@ def path_lookup(data_obj, xj_path):
                 if not isinstance(data_obj, dict):
                     raise XJPathError('Accessed object must be a dict type '
                                       'for the key: "%s"' % top_key)
-                data_obj[top_key] = val_type()
+                if create_dict_path:
+                    data_obj[top_key] = val_type()
+                else:
+                    return None, False
                 if leftover:
-                    return path_lookup(data_obj[top_key], leftover)
+                    return path_lookup(data_obj[top_key], leftover,
+                                       create_dict_path)
                 else:
                     return data_obj[top_key], True
             return None, False
@@ -444,3 +417,27 @@ def strict_path_lookup(data_obj, xj_path, force_type=None):
     else:
         raise XJPathError('Path does not exist', (xj_path,))
 
+
+class XJPath(object):
+
+    def __init__(self, data_structure):
+        self.data_structure = data_structure
+
+    def __getitem__(self, item):
+        try:
+            value, exists = path_lookup(self.data_structure, item)
+        except XJPathError as e:
+            raise IndexError('Path error: %s' % str(item), *e.args) from None
+        except TypeError as e:
+            raise IndexError('Path error: %s' % str(item), *e.args) from None
+
+        if exists:
+            return value
+        else:
+            raise IndexError('Path does not exist %s' % str(item))
+
+    def get(self, path, default=None):
+        try:
+            return self[path]
+        except IndexError:
+            return default
