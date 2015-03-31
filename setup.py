@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 setup(
     name='xjpath',
     description='JSON like structure data lookup',
-    version='0.1',
+    version='0.1.5',
     author='Volodymyr Burenin',
     author_email='vburenin@gmail.net',
     maintainer='Volodymyr Burenin',
