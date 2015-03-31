@@ -1,50 +1,102 @@
 XJPATH simplifies access to the python data structures using relatively
-simple path syntax.
+simple path syntax. It doesn't not only lookup value, it also can
+validate found data type as well as create value if a target structure is a
+dictionary.
 
-A returned element is the actual pointer to the object that can be modified
-in place if it is possible. However, in case if returned value is a tuple
-it is a copied list of values that can not be modified. For example a list
-of dictionary values is a good example.
+The typical scenarios are:
 
-Let's assume we have the following data structure:
+ - you need to lookup an element from nested dicts.
+ - you need to lookup and element from array that is a value of nested dictionary
+ - you need to get a list of X values from multiple nested dictionaries.
+ - you just want to operate with a complex data structure in the way you
+   operate with the dictionary.
+ - you want to make sure that found data has an expected type.
+
+The expression syntax is trivial it looks like:
+
+'key1.key2.key3'
+
+Each key name is a nested data index/key. Key may refer to a dictionary,
+an array index or iterator.
+
+To refer a dictionary key, just use its name as in the example above.
+
+An array index is prepended with '@' symbol:
+
+    @2 - Means seconds element.
+    @-2 - Means second element from the end.
+    @last - Means last element.
+    @first - Means first element of the array.
+
+In case if dictionary key contains any reserved symbols, just escape them.
+
+'2.\@2' - will lookup key 2 and then key '@2'.
+
+You also can specify a type of expected value as a postfix for expected value:
+
+  'keyname[]', '@last[], '@first{}', 'data$', 'data#'
+
+  [] - Expected value is a list.
+  () - Expected value is a tuple.
+  {} - Expected value is a dictionary.
+  # - Expected value is an integer.
+  % - Expected value is a float.
+  $ - Expected value is a string.
+
+
+Here is a bunch of examples:
 
 >>> d = {'data': {
   'a_array': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
   'b_dict': {'a': 'xxx', 'b': 'yyy', 'c': 'zzz'},
-  'c_array': [{'v1': 'vdata1'}, {'v2': 'vdata2'}]}}
+  'c_array': [{'v': 'vdata1'}, {'v': 'vdata2'}]}}
+>>> xj = xjpath.XJPath(d)
 
-Get value ['data']['b_dict']['a']:
+To get 'a_array' array:
 
->>> path_lookup(d, 'data.b_dict.a')
-('xxx', True)
+>>> xj['data.a_array']
+[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-Get first element of a_array:
->>> path_lookup(d, 'data.a_array.@first')
-(0, True)
+>>> xj['data.a_array{}']
+IndexError: ('Path error: data.a_array{}', 'Key a_array expects type "dict", but found value type is "list"')
 
-Get the last element of a_array:
+To get a last element of 'a_array' array:
 
->>> path_lookup(d, 'data.a_array.@last')
-(10, True)
+>>> xj['data.a_array.@last']
+10
 
-Get a second element of a_array:
+To get the first element of 'a_array' array:
 
->>> path_lookup(d, 'data.a_array.@1')
-(1, True)
+>>> xj['data.a_array.@first']
+0
 
-Get element before a last one:
+To get 9th element from 'a_array':
 
->>> path_lookup(d, 'data.a_array.@-2')
-(9, True)
+>>> xj['data.a_array.@9']
+9
 
-Get all elements of a_array as non modifiable tuple:
->>> path_lookup(d, 'data.a_array.*')
-((1, 2, 3, 4, 5, 6, 7, 8, 9, 0), True)
+To get third element from the back from 'a_array':
 
-Get all values of b_dict as a tuple:
->>> path_lookup(d, 'data.b_dict.*')
-((1, 2, 3, 4, 5, 6, 7, 8, 9, 0), True)
+>>> xj['data.a_array.@-3']
+8
 
->>> path_lookup(d, 'data.b_dict.*')
-(('yyy', 'zzz', 'xxx'), True)
+To get all values that are stored in dictionaries with key 'v1' of array c_array:
+
+>>> xj['data.c_array.*.v']
+('vdata1', 'vdata2')
+
+To return a frozen copy of a_array:
+
+>>> xj['data.a_array.*']
+(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+To get all values of b_dict dictionary:
+
+>>> xj['data.b_dict.*']
+('zzz', 'yyy', 'xxx')
+
+
+If you don't like a dictionary like interface. Feel free to use path_lookup
+function instead that returns a found value as well as a boolean value telling
+you if result is found or not.
 
