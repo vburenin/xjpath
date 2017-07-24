@@ -443,3 +443,32 @@ class XJPath(object):
             return self[path]
         except IndexError:
             return default
+
+
+if __name__ == '__main__':
+    import argparse
+    import json
+    import sys
+
+    parser = argparse.ArgumentParser(
+        description='JSON data structure lookup. This utility performs a XJPath'
+        ' lookup on a given data structure and writes the result as JSON.')
+    parser.add_argument('-i', '--input-file', default=None,
+                        help='Path to JSON data structure. Default is STDIN.')
+    parser.add_argument('-o', '--output-file', default=None,
+                        help='Where to write XJPath result. Default is STDOUT.')
+    parser.add_argument('path', type=str,
+                        help='XJPath expression to apply to data structure.')
+    args = parser.parse_args()
+
+    input_file = sys.stdin if args.input_file is None else open(args.input_file)
+    output_file = (sys.stdout if args.output_file is None
+                   else open(args.output_file, 'w'))
+
+    with input_file:
+        xj = XJPath(json.load(input_file))
+        result = xj[args.path]
+
+        with output_file:
+            output_file.write(json.dumps(result))
+            output_file.write('\n')
