@@ -150,7 +150,7 @@ def split(inp_str, sep_char, maxsplit=-1, escape_char='\\'):
             if maxsplit == 0:
                 yield ''.join(inp_str_iter)
                 raise StopIteration
-            word_chars.clear()
+            del word_chars[:]
 
     yield ''.join(word_chars)
 
@@ -253,9 +253,10 @@ def _split_path(xj_path):
              a last piece of key.
     """
 
-    root_key, *sub_key = xj_path.rsplit('.', 1)
-    if sub_key:
-        return root_key, sub_key[0]
+    res = xj_path.rsplit('.', 1)
+    root_key = res[0]
+    if len(res) > 1:
+        return root_key, res[1]
     else:
         if root_key and root_key != '.':
             return None, root_key
@@ -283,7 +284,7 @@ def validate_path(xj_path):
                 int(path[1:])
             except ValueError:
                 raise XJPathError('Array index must be either integer or '
-                                  '@first or @last') from None
+                                  '@first or @last')
 
 
 _KEY_SPLIT = {
@@ -361,8 +362,9 @@ def path_lookup(data_obj, xj_path, create_dict_path=False):
     if not xj_path or xj_path == '.':
         return data_obj, True
 
-    top_key, *leftover = split(xj_path, '.', maxsplit=1)
-    leftover = leftover[0] if leftover else None
+    res = list(split(xj_path, '.', maxsplit=1))
+    top_key = res[0]
+    leftover = res[1] if len(res) > 1 else None
     if top_key == '*':
         return _full_sub_array(data_obj, leftover, create_dict_path)
     elif top_key.startswith('@'):
@@ -427,9 +429,9 @@ class XJPath(object):
         try:
             value, exists = path_lookup(self.data_structure, item)
         except XJPathError as e:
-            raise IndexError('Path error: %s' % str(item), *e.args) from None
+            raise IndexError('Path error: %s' % str(item), *e.args)
         except TypeError as e:
-            raise IndexError('Path error: %s' % str(item), *e.args) from None
+            raise IndexError('Path error: %s' % str(item), *e.args)
 
         if exists:
             return value
@@ -441,3 +443,32 @@ class XJPath(object):
             return self[path]
         except IndexError:
             return default
+
+
+if __name__ == '__main__':
+    import argparse
+    import json
+    import sys
+
+    parser = argparse.ArgumentParser(
+        description='JSON data structure lookup. This utility performs a XJPath'
+        ' lookup on a given data structure and writes the result as JSON.')
+    parser.add_argument('-i', '--input-file', default=None,
+                        help='Path to JSON data structure. Default is STDIN.')
+    parser.add_argument('-o', '--output-file', default=None,
+                        help='Where to write XJPath result. Default is STDOUT.')
+    parser.add_argument('path', type=str,
+                        help='XJPath expression to apply to data structure.')
+    args = parser.parse_args()
+
+    input_file = sys.stdin if args.input_file is None else open(args.input_file)
+    output_file = (sys.stdout if args.output_file is None
+                   else open(args.output_file, 'w'))
+
+    with input_file:
+        xj = XJPath(json.load(input_file))
+        result = xj[args.path]
+
+        with output_file:
+            output_file.write(json.dumps(result))
+            output_file.write('\n')
