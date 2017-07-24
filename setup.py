@@ -3,8 +3,8 @@ from setuptools import setup, find_packages
 
 setup(
     name='xjpath',
-    description='JSON like structure data lookup library. A fast alternative to XPath and JsonPath. Python3 only.',
-    version='0.1.5',
+    description='JSON like structure data lookup library. A fast alternative to XPath and JsonPath.',
+    version='0.2.0',
     author='Volodymyr Burenin',
     author_email='vburenin@gmail.net',
     maintainer='Volodymyr Burenin',
@@ -21,6 +21,8 @@ setup(
     classifiers=['License :: OSI Approved :: MIT License',
                  'Development Status :: 5 - Production/Stable',
                  'Intended Audience :: Developers',
+                 'Programming Language :: Python :: 2.6',
+                 'Programming Language :: Python :: 2.7',
                  'Programming Language :: Python :: 3.2',
                  'Programming Language :: Python :: 3.3',
                  'Programming Language :: Python :: 3.4',
