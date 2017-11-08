@@ -457,6 +457,8 @@ if __name__ == '__main__':
                         help='Path to JSON data structure. Default is STDIN.')
     parser.add_argument('-o', '--output-file', default=None,
                         help='Where to write XJPath result. Default is STDOUT.')
+    parser.add_argument('-m', '--multiple-lines', action='store_true',
+                        help='Expect multiple newline-deliminated JSON objects.')
     parser.add_argument('path', type=str,
                         help='XJPath expression to apply to data structure.')
     args = parser.parse_args()
@@ -465,10 +467,16 @@ if __name__ == '__main__':
     output_file = (sys.stdout if args.output_file is None
                    else open(args.output_file, 'w'))
 
-    with input_file:
-        xj = XJPath(json.load(input_file))
-        result = xj[args.path]
+    def dump_xjpath(obj):
+        xj = XJPath(obj)
+        output_file.write(json.dumps(xj[args.path]))
+        output_file.write('\n')
 
-        with output_file:
-            output_file.write(json.dumps(result))
-            output_file.write('\n')
+    with input_file, output_file:
+        if args.multiple_lines:
+            for line in input_file:
+                line = line.strip()
+                if line:
+                    dump_xjpath(json.loads(line))
+        else:
+            dump_xjpath(json.load(input_file))
