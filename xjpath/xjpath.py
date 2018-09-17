@@ -149,7 +149,7 @@ def split(inp_str, sep_char, maxsplit=-1, escape_char='\\'):
             maxsplit -= 1
             if maxsplit == 0:
                 yield ''.join(inp_str_iter)
-                raise StopIteration
+                return
             del word_chars[:]
 
     yield ''.join(word_chars)
